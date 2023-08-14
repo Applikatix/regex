@@ -1,6 +1,6 @@
-use std::{fmt, error::Error, str::Chars};
+use std::{fmt, error::Error};
 
-use element::{Elem, Amount, Value};
+use element::{Elem, Amount, Value, Match};
 
 pub struct Regex {
     elements: Vec<Elem>,
@@ -15,50 +15,40 @@ impl Regex {
     pub fn parse(string: &str) -> Result<Regex, ParseRegexError> {
         let mut elements = Vec::new();
 
-        for char in string.chars() {
-            elements.push(match char {
-                char => Elem {
-                    value: Value::Literal(char),
-                    quantity: Amount::One,
-                }
-            })
-        }
+        let mut chars = string.chars();
+        while let Some(char) = chars.next() { match char {
+            '\\' => {
+                let char = match chars.next() {
+                    Some(c) => c,
+                    None => return Err(ParseRegexError),
+                };
+                elements.push(Elem::new(Value::Literal(char)));
+            }
+            '.' => elements.push(Elem::new(Value::Wildcard)),
+            char => elements.push(Elem::new(Value::Literal(char))),
+        }}
 
         Ok(Regex { elements })
     }
 
     pub fn is_match(&self, string: &str) -> bool {
-        let mut string = string.chars();
+        let mut chars = string.chars();
 
         loop {
-            if self.match_elems(string.clone()) {
+            if Elem::group_compare(&self.elements, &mut chars.clone()) {
                 return true;
             }
 
-            if let None = string.next() { break; }
+            if let None = chars.next() { break; }
         }
 
         false
     }
 
-    fn match_elems(&self, mut chars: Chars) -> bool {
-        let mut elements = self.elements.iter();
-        for elem in elements { match elem.value {
-            Value::Literal(val) => match chars.next() {
-                Some(char) if char == val => continue,
-                _ => return false,
-            },
-        }}
-        
-        true
-    }
-
-    pub fn find(&self, _string: &str) -> Matches {
+    pub fn find(&self, _string: &str) -> Vec<Match> {
         todo!();
     }
 }
-
-pub struct Matches; // todo
 
 #[derive(Debug)]
 pub struct ParseRegexError; // todo: Værdier
